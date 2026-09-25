@@ -1,121 +1,73 @@
 # macroscope-check-run-agents
 
-A Claude Code skill that bootstraps [Macroscope check run agents](https://docs.macroscope.com/check-run-agents)
-for a repository — by reading the conventions your team already writes down (rule files,
-contributor docs, review skills) and pairing them with Macroscope's curated templates.
+A Claude Code skill that generates [Macroscope check run agents](https://docs.macroscope.com/check-run-agents)
+from what a repository already enforces.
 
-You install the skill, open your project in Claude Code, and run it. It proposes a
-handful of high-value rules, you accept the ones you want, and it opens a PR adding
-the generated agent files. Merge to activate; backtest against a real PR to validate.
-
-## What it does
-
-1. **Discovers** your written conventions — `CLAUDE.md`, `AGENTS.md`, cursor rules,
-   `CONTRIBUTING.md`, review skills, PR templates — and reads your existing check run
-   agents (plus the built-in Correctness/Approvability) so it doesn't duplicate them.
-   It deliberately *allows* overlap with linters/CI: if a violation reached review, the
-   linter didn't catch it, so an agent that does is a real save.
-2. **Recommends** up to 6 of the strongest candidates — drawn from your conventions and
-   Macroscope's curated templates — and lets you accept/decline each in an interactive
-   menu. Each suggestion shows **why** — the exact file and line in *your* repo where it
-   found the convention (or, for a template, the repo signal that makes it apply). Fewer
-   than 6 if the repo doesn't hold that many genuine conventions — it won't pad the list
-   with weak ideas. (Provenance is shown to you and recorded in the PR description, but
-   kept out of the agent files so it can't confuse the agent at runtime.)
-3. **Generates** the approved rules as `.macroscope/check-run-agents/*.md` files on a
-   new branch (built in an isolated worktree, so your working tree is never touched)
-   and **opens a PR** — your review surface. Generated agents are advisory
-   (`neutral`) and can't block PRs.
-4. You **review, edit, and merge** the PR. Macroscope loads agents from the default
-   branch, so merging is what activates them.
-5. **Backtests** (optional): the skill recreates a real past PR as a fresh one so your
-   now-live Macroscope agents evaluate it for real. You read the actual check-run
-   output and iterate.
-
-> The skill never simulates a check run itself. Macroscope is the only thing that
-> ever runs one — validation happens through the real backtest in step 5.
-
-## Requirements
-
-- [Claude Code](https://claude.com/claude-code)
-- [`gh`](https://cli.github.com/) authenticated (`gh auth login`)
-- The Macroscope GitHub app installed on the repo (so agents actually run on PRs,
-  and for the backtest)
-- For backtesting: **write access** to the repo (the backtest opens a new PR)
+It reads two sources: the conventions the team wrote down (`CLAUDE.md`, `AGENTS.md`,
+cursor rules, `CONTRIBUTING.md`, review skills) and the review comments reviewers
+keep leaving on merged PRs. It picks the rules worth automating, groups them by the
+files they apply to so a Go PR never pays for Python rules, sets each agent's effort
+and input mode from how hard its rules are, and writes them as
+`.macroscope/check-run-agents/*.md` files. Each rule is reported with its source:
+the file and line, or the PRs and reviewers who asked for it. You review the files in
+your editor, keep what you want, and merge. Where a repo's conventions are thin, it
+offers Macroscope's curated templates instead of inventing rules.
 
 ## Install
 
-### Option A — as a plugin (recommended)
-
-In Claude Code:
+As a plugin:
 
 ```
 /plugin marketplace add govambam/macroscope-check-run-agents
 /plugin install macroscope-check-run-agents
 ```
 
-This auto-discovers the skill and keeps it updated (`/plugin update`). Because the
-plugin doesn't pin a `version`, you receive new commits automatically on update.
+Or copy `skills/macroscope-check-run-agents/` into `~/.claude/skills/` or your
+repo's `.claude/skills/`.
 
-### Option B — manual copy
-
-Copy the skill folder into your Claude Code skills directory:
-
-```bash
-git clone https://github.com/govambam/macroscope-check-run-agents
-cp -R macroscope-check-run-agents/skills/macroscope-check-run-agents ~/.claude/skills/      # user-scoped (every repo)
-# or, project-scoped:
-cp -R macroscope-check-run-agents/skills/macroscope-check-run-agents <your-repo>/.claude/skills/
-```
+PR mining and the target-repo form need [`gh`](https://cli.github.com/) authenticated.
+Without it the skill runs on repo rules alone and says so.
 
 ## Use
 
-Open your repository in Claude Code and ask:
-
-> Set up Macroscope check run agents for this repo
-
-or run `/macroscope-check-run-agents`. The skill confirms the target repo, walks the
-steps above, and stays in your control — nothing is committed without your go, and it
-only merges if you explicitly choose to.
-
-## Backtesting
-
-The optional validation step recreates an existing PR as a fresh one so your live
-Macroscope agents evaluate it as new, then points you to the new PR's Checks tab for
-the real findings. It uses `pr-backtest.sh`, which is bundled with this skill at
-`skills/macroscope-check-run-agents/scripts/pr-backtest.sh`. The script does all its work in a disposable temp clone and never
-touches your checkout; it does push two branches and open a PR (using your `gh` write
-access).
-
-## Repository layout
+Inside a repository:
 
 ```
-.claude-plugin/
-  marketplace.json                 # makes this repo an installable marketplace
-  plugin.json                      # the plugin manifest
-skills/
-  macroscope-check-run-agents/
-    SKILL.md                       # the workflow Claude follows
-    reference/
-      agent-file-format.md         # frontmatter schema + body conventions
-      good-rule-heuristics.md      # what makes a rule worth automating
-      examples/                    # exemplar agents (incl. a Sentry/integration one)
-    scripts/
-      pr-backtest.sh               # bundled backtest script (vendored snapshot)
+/macroscope-check-run-agents
 ```
 
-## Maintenance
+Against a repository you don't have checked out:
 
-- **Pinned model.** Generated agents pin `claude-opus-4-6`. It is referenced in four
-  places — `skills/macroscope-check-run-agents/SKILL.md` (Step 5),
-  `reference/agent-file-format.md`, and each `reference/examples/*.md`. Bump them
-  together (e.g. to `claude-opus-4-8`) if you change the default.
-- **Vendored from upstream.** `reference/agent-file-format.md` mirrors
-  [docs.macroscope.com/check-run-agents](https://docs.macroscope.com/check-run-agents)
-  and carries a "synced" date; `scripts/pr-backtest.sh` is a commit-pinned snapshot of
-  [pr-backtest-script](https://github.com/govambam/pr-backtest-script). Re-sync each and
-  bump its stamp when the upstream changes.
+```
+/macroscope-check-run-agents temporalio/temporal
+```
+
+The second form writes to `./temporalio-temporal/` in the current directory, with a
+`PROPOSAL.md` beside the agent files holding the reasoning.
+
+Generated agents are advisory and cannot block a PR. Templates that ship blocking
+(`security-review`, `guardrails`) are flagged when offered. Macroscope loads agents
+from the default branch, so merging is what activates them.
+
+To validate agents against a real past PR once they're live, use
+[pr-backtest-script](https://github.com/govambam/pr-backtest-script).
+
+## Layout
+
+```
+.claude-plugin/              plugin and marketplace manifests
+skills/macroscope-check-run-agents/
+  SKILL.md                   the workflow
+  scripts/
+    review-threads.sh        150 merged PRs' human review threads as TSV, 3 API calls
+    fetch-repo.sh            a target repo's convention files via sparse checkout
+  reference/
+    agent-file-format.md     frontmatter schema and body guidance, mirrored from the docs
+    good-rule-heuristics.md  what makes a rule worth automating, and how to group them
+    example.md               one complete agent in the shape the skill writes
+  templates/                 Macroscope's curated agents, copied verbatim when accepted
+```
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).

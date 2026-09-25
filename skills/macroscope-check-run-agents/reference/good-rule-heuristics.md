@@ -1,112 +1,77 @@
 # What makes a good check run agent rule
 
-A check run agent runs on every PR. A bad rule — vague, subjective, or a duplicate of
-another check run agent — trains the team to ignore the agent. Score every candidate
-on the four tests below. A rule should clearly pass all four before you propose it.
+A check run agent runs on every PR. A vague, subjective, or duplicate rule trains the
+team to ignore the agent. A candidate should clearly pass all four tests below.
 
-## 1. Objective & diff-checkable
+## 1. Objective and diff-checkable
 
-Can an LLM reviewer actually decide this from the PR diff plus browsing the
-codebase? Favor rules with a checkable trigger.
+Can an LLM reviewer decide this from the PR diff plus browsing the codebase? Favor
+rules with a concrete trigger.
 
 - **Good:** "New HTTP route handlers must register an entry in `routes.ts`."
 - **Good:** "Any new public function in `sdk/` needs a doc comment."
-- **Bad:** "Code should be well-architected." (subjective, no trigger)
-- **Bad:** "Make sure the feature is what the customer wanted." (not in the diff)
+- **Bad:** "Code should be well-architected." No trigger.
+- **Bad:** "Make sure the feature is what the customer wanted." Not in the diff.
 
 Rephrase soft conventions into a concrete trigger, or drop them.
 
-## 2. Recurring / worth automating
+## 2. Recurring
 
-Automate things that come up again and again — not one-offs.
+Automate what comes up again and again.
 
-- Strong: a rule stated emphatically, or repeated across the team's written conventions
-  (`CONTRIBUTING.md`, `CLAUDE.md`, cursor rules, review skills).
-- Weak: a passing aside mentioned once, or a soft preference with no real teeth.
+- Strongest: a repo rule that reviewers still had to ask for in PR comments.
+- Strong: a repo rule stated emphatically, or a PR comment that recurs across 2 or
+  more PRs or from 2 or more reviewers, mostly on threads the author acted on.
+- Weak: a passing aside, a preference with no teeth, or a PR comment seen once.
 
-Recurrence is the clearest evidence the team actually cares and that an agent will
-earn its keep.
+## 3. Not covered by another check run agent
 
-## 3. Not duplicating another check run agent
+The only thing to dedupe against is another check run agent: an existing custom agent
+in `.macroscope/check-run-agents/`, or the built-in **Correctness** (runtime bugs) and
+**Approvability** (merge readiness). If a rule restates one of those, drop it.
 
-The only thing worth deduping against is **another check run agent** — an existing
-custom agent in `.macroscope/check-run-agents/*`, or the built-in **Correctness**
-(runtime bugs) and **Approvability** (merge readiness). If a rule just restates what
-one of those already does, drop it.
+Overlap with linters, formatters, type-checkers, and CI is fine. A linter only helps
+when it's configured, enabled, and able to make the call. Rules get disabled inline or
+never set up, and a linter can't reason that "this `assert` lets the test continue and
+the next line dereferences nil." If a violation reaches review, the linter didn't catch
+it. Read linter configs to understand the team's conventions, never as a reason to
+exclude a candidate.
 
-**Overlap with linters, formatters, type-checkers, and CI is fine — often valuable.**
-Do *not* drop a rule because a linter *could* catch it. A linter only helps when it's
-actually configured, enabled, and reliable for that case — in practice rules get
-disabled inline, are never set up, or miss the semantic call entirely. If a PR reaches
-review with the violation still in it, the linter *didn't* catch it, and an agent that
-does is a real save, not noise. Read linter configs to *understand* the team's
-conventions (a custom lint rule is a codified convention worth encoding) — never as a
-reason to exclude a candidate.
+## 4. Costly when violated
 
-- Keep: "prefer `require` over `assert` when a later line dereferences the value" —
-  a linter might flag some assert/require swaps, but it won't reason about the
-  nil-then-deref panic, and a miss ships a flaky test.
-- Drop: a rule that just re-runs the built-in Correctness bug hunt, or repeats a
-  sibling custom agent already in the repo.
+Prefer rules where a miss hurts: correctness, security, data integrity, API stability,
+on-call burden. Cosmetic rules can ship as 🟢 Nit but shouldn't crowd out the important
+ones.
 
 ## Conventions, not bugs
 
-A check run agent encodes a **standing convention** — a rule that applies to every
-future PR. It is **not** a place to park individual bug findings. Watch for this when a
-written doc blurs the two — e.g. a `CONTRIBUTING` note that's really a one-off caveat:
-
-- **A bug report** points at a defect *in the PR under review* — "this null-derefs",
-  "this leaks a file handle", "wrong boundary here". It's specific to that diff and
-  doesn't generalize. Macroscope's built-in **Correctness** agent already hunts this
-  entire class on every PR. **Do not turn these into check run agents.**
-- **A convention** states a rule the team holds *independent of any one PR* — "we
-  always add a changeset", "endpoints get registered in the router", "no PII in
-  logs". It applies to PRs the reviewer hasn't even seen yet.
-
-The test: can you restate the comment as **"on any PR, flag X when Y"** without
-referring to this PR's specific code? If yes, it's a convention — keep it. If you
-can only describe it by pointing at this PR's lines, it's a bug — drop it.
-
-When unsure, drop it. A missed convention costs nothing; a bug masquerading as a
-convention produces a vague agent that fires randomly and erodes trust.
-
-## 4. High value when violated
-
-Prefer rules where a miss actually hurts — correctness, security, data integrity,
-API/contract stability, on-call burden — over cosmetic preferences. Cosmetic rules
-can still ship as 🟢 Nit but shouldn't crowd out the important ones.
-
----
+An agent encodes a standing rule that applies to every future PR. It is not a place to
+park a one-off finding. The test: can you restate it as "on any PR, flag X when Y"
+without pointing at specific code? If not, drop it. Correctness already owns bugs.
 
 ## Grouping into agents
 
-Don't make one agent per rule. Bundle related rules into a **small number of agents
-(aim for 2–4)** organized by domain, matching how Macroscope's own examples
-consolidate concerns:
+Macroscope runs an agent on every PR that touches a file matching its `include`
+glob, and pays the whole prompt each time. So the file scope, not the topic, decides
+which rules share an agent:
 
-- `api-conventions.md` — routing, error handling, versioning, public surface
-- `testing.md` — coverage expectations, test placement, fixtures
-- `frontend.md` — accessibility, event tracking, component patterns
-- `security.md` — secrets, PII logging, authz checks
+- Same scope, same agent. Universal rules (any code change) form the primary agent.
+  Language rules form one agent per language. Area rules (`src/api/**`,
+  `migrations/**`) form one per area.
+- About 5 rules per agent.
+- Merge up, never sideways. A one-rule agent folds into the nearest enclosing scope.
+  Never combine disjoint scopes such as Python and Go: every Go PR would pay for
+  Python rules that can't fire.
+- Split by domain only inside a scope and only past the cap: Go testing and Go API
+  conventions, not Go and Python.
 
-Scope each agent with `include`/`exclude` globs so it only runs on relevant files.
+Give each agent `include` and `exclude` globs that state its scope exactly.
 
-## The phrasing checklist for each generated rule
+## Checklist for each rule
 
-- States a concrete **trigger** ("flag X when Y").
-- Carries a **severity** (🔴 / 🟡 / 🟢).
-- Says what **not** to flag where false positives are likely.
-- Ends the agent with **explicit permission to report nothing** on a clean PR.
-- Has **provenance tracked for the user** (source file + line/quote) — shown in the
-  proposal and PR description, **not** written into the agent file.
-
-## Anti-patterns — do not propose
-
-- Restating **another check run agent** — an existing custom agent, or the built-in
-  Correctness / Approvability. (Overlapping with a *linter* is fine; overlapping with
-  another *agent* is the duplication to avoid.)
-- A one-off bug finding from a PR comment dressed up as a rule (see "Conventions,
-  not bugs" above) — the Correctness agent already owns this.
-- Subjective taste with no checkable trigger.
-- A rule invented by you that the repo doesn't actually hold. If you can't cite a
-  source for it, don't propose it.
+- A concrete trigger: "flag X when Y".
+- A severity: 🔴 / 🟡 / 🟢.
+- What not to flag, where false positives are likely.
+- The agent ends with explicit permission to report nothing on a clean PR.
+- A source in the repo you can cite to the user. If you can't cite one, don't propose
+  it.

@@ -1,105 +1,95 @@
 # Check run agent file format
 
-Source: https://docs.macroscope.com/check-run-agents — synced 2026-06-18. Re-check the
-live docs if anything here looks stale (model list, tool list, frontmatter fields).
+Source: https://docs.macroscope.com/check-run-agents and
+https://docs.macroscope.com/model-pricing, synced 2026-09-25. Re-check the live docs
+if anything here looks stale. An unknown `model` value makes the run conclude
+`skipped` with no fallback, so the model list matters most.
 
-Each agent is one `.md` file in `.macroscope/check-run-agents/` at the repo root.
-The filename (minus `.md`) becomes the default title. Agents run on every PR — on
-open, on push, and on manual rerun — alongside Macroscope's two built-in agents
-(**Correctness** and **Approvability**).
+Each agent is one `.md` file in `.macroscope/check-run-agents/` at the repo root
+(subdirectories are walked). The filename is the default title. Agents run on every
+PR alongside Macroscope's built-in **Correctness** and **Approvability** agents.
+Macroscope reads agent files from the PR's own branch, so a new agent can be tried
+on its own PR before it's merged; other PRs pick it up once it's on the default
+branch. `approvability.md` and `ignore.md` are reserved and live in `.macroscope/`.
 
-> **Reserved:** `approvability.md` and `ignore` are reserved and must stay in
-> `.macroscope/` root, not in the `check-run-agents/` subfolder.
->
-> **Activation:** Macroscope reads agent files from the **default branch**. Changes
-> only take effect on new PRs after they're merged.
+## Frontmatter
 
-## Anatomy
+All fields are optional.
 
+| Field | Default | Notes |
+|-------|---------|-------|
+| `title` | filename | max 60 chars, shown in the Checks tab |
+| `model` | `claude-opus-4-6` | see the model list below |
+| `effort` | `low` | `low`, `medium`, `high`. Anthropic models only. How deep the agent digs. |
+| `reasoning` | `low` | **Ignored on every Anthropic model newer than Opus 4.5 and Sonnet 4.5**, which set thinking automatically. Only meaningful on OpenAI, xAI, and open-source models. Don't write it for Anthropic models. |
+| `input` | `incremental` | `full_diff`, `incremental`, `code_object`, `pr_metadata`. See below. Always set it explicitly. |
+| `tools` | `browse_code`, `git_tools`, `github_api_read_only`, `modify_pr` | Setting `tools` replaces the defaults. Extras need a connection: `sentry`, `slack`, `issue_tracking_tools`, `posthog`, `launchdarkly`, `bigquery`, `amplitude`, `gcp_cloud_logging`, `web_tools`, `image_gen`, `mcp`. |
+| `include` / `exclude` | none | globs. `include` narrows first, `exclude` carves out. A pattern without `/` matches at any depth. An agent's `include` overrides `.macroscope/ignore.md`. |
+| `conclusion` | `neutral` | `failure` lets the agent block merges. Requires `input: full_diff`. |
+| `labels` / `authors` / `targets` | none | run only when the PR matches. `targets` accepts `only_default_branch`. |
+| `requiredStatusCheck` | `false` | report `skipped` instead of not appearing when filters exclude the PR. For branch-protection required checks. |
+| `waitsFor` / `requires` | none | check names or `["*"]`. `requires` also skips the agent if a prerequisite failed. 10 names total. |
+| `waitsForTimeout` | `20` | minutes, 1 to 60 |
+| `maxRuns` | none | runs per PR |
+| `maxBudgetPerRun` / `maxBudgetPerPR` | none | USD, best effort. Not with `code_object`. Workspace default caps all agents at $100 per PR. |
+| `showToolCalls` | `true` | log tool calls on the check run page |
+
+## Input modes
+
+| `input` | What the agent sees | Cost | Use for |
+|---|---|---|---|
+| `incremental` | only files changed since this agent's last completed review, each as its full diff against the merge base | lowest on later pushes | any per-file rule on an advisory agent. This is also how Correctness runs. |
+| `full_diff` | the whole PR diff every run | low | rules that need PR-level context (a change here requires a change there), and any blocking agent |
+| `pr_metadata` | title, author, labels, description, commit messages. No diff. | lowest | rules about the PR itself: ticket links, title format |
+| `code_object` | up to 20 parallel agents, one per changed code object | highest | strict per-unit rules. Prefer `full_diff`. |
+
+`incremental` does not support `conclusion: failure`; that combination is a
+configuration error. A diff that won't fit the model's context window is left out
+whole and the agent is told to read paths with `git_diff` instead.
+
+## Models
+
+The skill writes `model: claude-opus-5-5` on every agent: the latest Opus, large
+context, and at 4 / 20 USD per 1M input/output tokens it's cheaper than the
+`claude-opus-4-6` default (5 / 25). Each generated file carries a comment above
+`model` pointing at the full list, since the repo owner may prefer another:
+
+```yaml
+# Macroscope supports many models: https://docs.macroscope.com/model-pricing#available-models
+model: claude-opus-5-5
 ```
----
-# optional YAML frontmatter (all fields optional; sensible defaults apply)
----
-markdown instructions for the agent
-```
 
-## Frontmatter schema
+Other Anthropic options: `claude-sonnet-5` (2 / 10) and `claude-fable-5-1` (10 / 50,
+no Zero Data Retention). OpenAI, xAI, and open-source models honor `reasoning`
+instead of `effort`; `gpt-6-luna` and `glm-5-3-flash` are the cheapest at 0.10 to
+0.15 per 1M input.
 
-| Field | Default | Options / notes |
-|-------|---------|-----------------|
-| `title` | filename | string, max 60 chars — name shown in the GitHub Checks tab |
-| `model` | `claude-opus-4-6` | `claude-opus-4-5/4-6/4-7/4-8`, `claude-sonnet-4-5/4-6`, `gpt-5-2/5-4/5-5` |
-| `reasoning` | `low` | `off`, `low`, `medium`, `high` |
-| `effort` | `low` | `low`, `medium`, `high` |
-| `input` | `full_diff` | `full_diff` (the PR diff) or `code_object` |
-| `tools` | `browse_code`, `git_tools`, `github_api_read_only`, `modify_pr` | extras (need connections): `web_tools`, `slack`, `sentry`, `posthog`, `launchdarkly`, `bigquery`, `amplitude`, `gcp_cloud_logging`, `issue_tracking_tools`, `image_gen`, `mcp` |
-| `include` | none | glob patterns — only matching changed files are reviewed |
-| `exclude` | none | glob patterns — matching files are skipped |
-| `conclusion` | `neutral` | `neutral` (advisory) or `failure` (can block) |
-| `showToolCalls` | `true` | `true`/`false` — log tool calls on the check run page |
-| `waitsFor` | none | check names or `["*"]` — wait for other checks first |
-| `waitsForTimeout` | `20` | 1–60 minutes |
+## Choosing effort and input
 
-### Scoping with include/exclude
+The skill assigns each agent a tier from what its hardest rule needs:
 
-- Neither set → all changed files reviewed.
-- Only `include` → only matching files.
-- Only `exclude` → everything except matches.
-- Both → `include` narrows first, then `exclude` carves out exceptions, e.g.
-  `include: ["src/**"]` + `exclude: ["src/gen/**"]`.
-- Repo-wide exclusions in `.macroscope/ignore` apply additively.
+| Tier | The rule needs | `effort` | `input` |
+|---|---|---|---|
+| **pattern** | only the changed lines: `assert` vs `require`, a `Sprintf` inside a log call, a camelCase proto field, `_ =` on an error | `low` | `incremental` |
+| **context** | to open other files: does this helper already exist, who calls this export, is the new route registered | `medium` | `incremental` |
+| **pr-level** | the whole PR at once: a bug-fix PR without a regression test, a response-shape change without a version bump | `medium` | `full_diff` |
+| **metadata** | only the title, body, or commits | `low` | `pr_metadata` |
 
-## Writing the body (instructions)
+`effort: high` only when a rule genuinely traces across several files, and the report
+says which rule. Never `reasoning` on these models, and never `xhigh` or `max`.
 
-The body is plain markdown telling the agent what to do. Macroscope's guidance:
+## Body
 
-- **Be specific.** "Flag any exported function over 50 lines without a doc comment"
-  beats "review for quality".
-- **Define severity levels** so output is consistently triaged.
-- **Use headings** to organize multiple concerns within one agent.
-- **Reference concrete paths** where rules live.
-- **Tell it what *not* to flag.**
-- **Give the agent permission to do nothing** — explicitly, so it doesn't
-  manufacture findings on a clean PR. This is the single most important line for
-  keeping the agent trustworthy.
+Plain markdown. Macroscope's own guidance:
 
-The agent formats findings however you instruct (tables, emoji severity, checklists,
-grouped output). Results surface in the check run details, as inline PR comments,
-and/or as a top-level PR comment.
+- Be specific: "flag any function over 50 lines without a doc comment", not "review
+  for quality".
+- Define severity levels. Use headings to organize concerns. Say what not to flag.
+- Don't replicate Correctness.
+- Give the agent explicit permission to do nothing on a clean PR.
+- Don't paste a standard in when it already lives in a file: `@/path/to/file.md`
+  splices that file into the instructions. Same syntax as `CLAUDE.md` imports.
 
-## Conventions this skill uses for generated agents
-
-**Frontmatter defaults.** Generated agents use `model: claude-opus-4-6`,
-`reasoning: high`, and `effort: high` (these override Macroscope's lighter defaults in
-the table above). The catches these agents are meant to make — e.g. "an `assert` lets
-the test continue and the next line dereferences a nil" — require multi-step reasoning
-that low/medium effort misses, so the skill opts into the deeper tier by default.
-
-To keep generated agents readable, this skill writes each rule as a `###` section
-with:
-
-- a **severity** marker — 🔴 Must fix / 🟡 Should fix / 🟢 Nit
-- a **What to flag** description (the "flag X when Y")
-- a **Don't flag** line where useful
-
-**No provenance in the agent file.** Do *not* write "Source", "seen in #1234", or any
-citation into the agent body. Macroscope reads the body as instructions at runtime, so
-provenance is noise the agent might try to act on. Provenance is surfaced to the user
-elsewhere — in the pre-pick proposal and in the PR description (see `SKILL.md`
-Steps 4–5) — never in the `.md` the agent runs.
-
-**Always require inline review comments — which need the `modify_pr` tool.** Every
-generated agent must end with the output-format block (see `examples/`) telling it to
-post each finding as an **inline review comment on the offending line** (severity +
-one-line explanation/fix), then a top-level summary comment, and "All clear." when the
-diff is clean. Inline posting is a `modify_pr` capability: if an agent's `tools:` list
-omits `modify_pr`, it physically *cannot* post inline and silently falls back to the
-check-run summary — the exact failure where findings exist but never annotate the code.
-`modify_pr` is in the default tool set, so the safe default is to **omit `tools:`
-entirely**; if you set `tools:` for any reason (e.g. adding `sentry`), the list
-**overrides** the defaults, so you must re-list `modify_pr` (and the other defaults you
-still want).
-
-See `examples/` for complete agents in this shape — including
-`observability.md`, which shows opting into an integration tool while keeping the
-defaults.
+Between runs on the same PR, the agent is shown its own earlier threads and whether
+they were resolved, so it doesn't repeat itself. Nothing in the body needs to ask
+for that.

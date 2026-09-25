@@ -1,6 +1,5 @@
 ---
 title: Security review
-model: claude-opus-4-6
 reasoning: high
 effort: high
 input: full_diff

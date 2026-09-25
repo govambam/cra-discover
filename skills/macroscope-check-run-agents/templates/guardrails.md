@@ -1,6 +1,5 @@
 ---
 title: Guardrails
-model: claude-opus-4-6
 reasoning: low
 effort: low
 input: full_diff

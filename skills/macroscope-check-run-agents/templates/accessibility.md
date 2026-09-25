@@ -1,6 +1,5 @@
 ---
 title: Accessibility
-model: claude-opus-4-6
 reasoning: medium
 effort: medium
 input: full_diff

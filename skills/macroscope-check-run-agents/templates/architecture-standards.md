@@ -1,6 +1,5 @@
 ---
 title: Architecture & standards
-model: claude-opus-4-6
 reasoning: high
 effort: medium
 input: code_object

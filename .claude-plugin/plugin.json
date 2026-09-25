@@ -1,6 +1,6 @@
 {
   "name": "macroscope-check-run-agents",
-  "description": "Bootstrap Macroscope check run agents from a repo's written conventions and merged-PR review history.",
+  "description": "Generate Macroscope check run agents from a repo's written conventions and recurring review comments.",
   "author": {
     "name": "govambam",
     "url": "https://github.com/govambam"

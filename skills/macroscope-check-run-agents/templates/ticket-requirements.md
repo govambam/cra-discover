@@ -1,6 +1,5 @@
 ---
 title: Ticket Requirements
-model: claude-opus-4-6
 reasoning: medium
 effort: high
 input: full_diff

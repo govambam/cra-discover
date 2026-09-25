@@ -1,4 +1,4 @@
-# macroscope-check-run-agents
+# cra-discover
 
 A Claude Code skill that generates [Macroscope check run agents](https://docs.macroscope.com/check-run-agents)
 from what a repository already enforces.
@@ -18,8 +18,8 @@ offers Macroscope's curated templates instead of inventing rules.
 As a plugin:
 
 ```
-/plugin marketplace add govambam/macroscope-check-run-agents
-/plugin install macroscope-check-run-agents
+/plugin marketplace add govambam/cra-discover
+/plugin install cra-discover
 ```
 
 Or copy `skills/cra-discover/` into `~/.claude/skills/` or your

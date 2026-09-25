@@ -1,12 +1,12 @@
 {
-  "name": "macroscope-check-run-agents",
+  "name": "cra-discover",
   "description": "Generate Macroscope check run agents from a repo's written conventions and recurring review comments.",
   "author": {
     "name": "govambam",
     "url": "https://github.com/govambam"
   },
-  "homepage": "https://github.com/govambam/macroscope-check-run-agents",
-  "repository": "https://github.com/govambam/macroscope-check-run-agents",
+  "homepage": "https://github.com/govambam/cra-discover",
+  "repository": "https://github.com/govambam/cra-discover",
   "license": "MIT",
   "keywords": ["macroscope", "check-run-agents", "code-review", "pull-requests", "conventions"]
 }

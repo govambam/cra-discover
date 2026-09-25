@@ -1,5 +1,5 @@
 {
-  "name": "macroscope-check-run-agents",
+  "name": "cra-discover",
   "description": "Generate Macroscope check run agents from a repo's written conventions and recurring review comments.",
   "owner": {
     "name": "govambam",
@@ -7,7 +7,7 @@
   },
   "plugins": [
     {
-      "name": "macroscope-check-run-agents",
+      "name": "cra-discover",
       "source": "./",
       "description": "Generate Macroscope check run agents from a repo's written conventions and recurring review comments.",
       "category": "code-review",

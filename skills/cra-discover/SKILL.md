@@ -1,5 +1,5 @@
 ---
-name: macroscope-check-run-agents
+name: cra-discover
 description: >
   Generate Macroscope check run agents from what a repository already enforces: its
   written conventions (CLAUDE.md, AGENTS.md, cursor rules, CONTRIBUTING, review
@@ -24,8 +24,8 @@ Read `reference/agent-file-format.md` and `reference/good-rule-heuristics.md` be
 writing anything.
 
 `scripts/` sits beside this file. For a manual install that is
-`~/.claude/skills/macroscope-check-run-agents/scripts`; for the plugin it is
-`$CLAUDE_PLUGIN_ROOT/skills/macroscope-check-run-agents/scripts`.
+`~/.claude/skills/cra-discover/scripts`; for the plugin it is
+`$CLAUDE_PLUGIN_ROOT/skills/cra-discover/scripts`.
 
 ## 0. Target
 

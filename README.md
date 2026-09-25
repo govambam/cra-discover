@@ -22,7 +22,7 @@ As a plugin:
 /plugin install macroscope-check-run-agents
 ```
 
-Or copy `skills/macroscope-check-run-agents/` into `~/.claude/skills/` or your
+Or copy `skills/cra-discover/` into `~/.claude/skills/` or your
 repo's `.claude/skills/`.
 
 PR mining and the target-repo form need [`gh`](https://cli.github.com/) authenticated.
@@ -33,13 +33,13 @@ Without it the skill runs on repo rules alone and says so.
 Inside a repository:
 
 ```
-/macroscope-check-run-agents
+/cra-discover
 ```
 
 Against a repository you don't have checked out:
 
 ```
-/macroscope-check-run-agents temporalio/temporal
+/cra-discover temporalio/temporal
 ```
 
 The second form writes to `./temporalio-temporal/` in the current directory, with a
@@ -56,7 +56,7 @@ To validate agents against a real past PR once they're live, use
 
 ```
 .claude-plugin/              plugin and marketplace manifests
-skills/macroscope-check-run-agents/
+skills/cra-discover/
   SKILL.md                   the workflow
   scripts/
     review-threads.sh        150 merged PRs' human review threads as TSV, 3 API calls

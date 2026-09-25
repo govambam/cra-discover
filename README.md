@@ -42,12 +42,13 @@ Against a repository you don't have checked out:
 /cra-discover temporalio/temporal
 ```
 
-The second form writes to `./temporalio-temporal/` in the current directory, with a
-`PROPOSAL.md` beside the agent files holding the reasoning.
+Both write to `./cra-proposals/`: a `README.md` explaining where each rule came
+from, and one file per proposed agent. Review them, delete what you don't want, copy
+the rest into `.macroscope/check-run-agents/` at the repo root, and open a PR.
+Macroscope loads agents from the default branch, so merging is what activates them.
 
 Generated agents are advisory and cannot block a PR. Templates that ship blocking
-(`security-review`, `guardrails`) are flagged when offered. Macroscope loads agents
-from the default branch, so merging is what activates them.
+(`security-review`, `guardrails`) are flagged when offered.
 
 To validate agents against a real past PR once they're live, use
 [pr-backtest-script](https://github.com/govambam/pr-backtest-script).

@@ -4,10 +4,10 @@ description: >
   Generate Macroscope check run agents from what a repository already enforces: its
   written conventions (CLAUDE.md, AGENTS.md, cursor rules, CONTRIBUTING, review
   skills) and the review comments its reviewers keep leaving on merged PRs. Writes
-  ready-to-review `.macroscope/check-run-agents/*.md` files. Use when the user wants
-  to create or discover check run agents, or asks "what should Macroscope check on my
-  PRs?". Accepts an optional `owner/repo` argument to target a repo that isn't
-  checked out locally.
+  proposed agent files and a README explaining each rule's evidence to
+  `./cra-proposals/`. Use when the user wants to create or discover check run
+  agents, or asks "what should Macroscope check on my PRs?". Accepts an optional
+  `owner/repo` argument to target a repo that isn't checked out locally.
 ---
 
 # Macroscope check run agents
@@ -17,7 +17,8 @@ Macroscope runs on every PR. Two sources tell you what the team enforces. **Repo
 rules** are conventions written in files in the repo. **PR comments** are what
 reviewers keep asking for on merged PRs. Read both, pick the rules worth automating,
 group them by the files they apply to, write the agent files, and report where each
-rule came from using those two names. The user reviews the files in their editor and merges.
+rule came from using those two names. The user reviews the proposals in their
+editor, copies the ones they keep into `.macroscope/check-run-agents/`, and merges.
 Merging to the default branch is what activates them.
 
 Read `reference/agent-file-format.md` and `reference/good-rule-heuristics.md` before
@@ -180,11 +181,11 @@ Write each authored agent following `reference/agent-file-format.md`, shaped lik
 Copy accepted templates from `templates/<id>.md` unchanged, including a
 `conclusion: failure` where one is set.
 
-**Where the files go.** Current checkout: `.macroscope/check-run-agents/<name>.md`.
-If a file already exists, write `<name>-proposed.md` instead and say so. Target repo
-without a checkout: `./<owner>-<repo>/.macroscope/check-run-agents/<name>.md` in the
-current directory, plus `./<owner>-<repo>/PROPOSAL.md` holding the report from Step 4,
-so one folder opens in an editor with both the files and the reasons.
+**Where the files go.** Always `./cra-proposals/` in the current directory, flat:
+one `<name>.md` per agent plus a `README.md` holding the report from Step 4. These are
+proposals, so they don't go into `.macroscope/` until the user has reviewed them. If
+`./cra-proposals/` already exists, write `./cra-proposals-2/` (then `-3`, and so on)
+rather than overwriting.
 
 ## 4. Report
 
@@ -222,8 +223,12 @@ its effort and input and the one-sentence reason for that tier. After the agents
 - **Templates**: one bullet per template written, with why it applies and whether
   it ships blocking or needs an integration.
 - **Left out**: one bullet per candidate that nearly made it and why it didn't.
-- **Next**: one line. Review in your editor, delete what you don't want, commit and
-  open a PR as usual. In target-repo mode, where the files went.
+- **Next**: two lines. Review the files here and delete what you don't want. Copy
+  the rest into `.macroscope/check-run-agents/` at the repo root and open a PR;
+  merging to the default branch activates them. (Macroscope ignores a `README.md`
+  in that folder, so copying everything is safe.)
+
+Print the same report to the terminal, and end with the output folder path.
 
 If PR mining was skipped, the Read line says so and why. If nothing clears the bar,
 say so and write nothing.
